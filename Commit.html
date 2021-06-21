@@ -1,0 +1,804 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script>
+<script src= "https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script> 
+<!-- <script src="http://mfgrpa2:4000/handsontable"></script> -->
+ <script src="https://cdn.jsdelivr.net/npm/handsontable@8.3.1/dist/handsontable.full.min.js"></script> 
+<link href="https://cdn.jsdelivr.net/npm/handsontable@8.3.1/dist/handsontable.full.min.css" rel="stylesheet" media="screen">
+
+<script src="/socket.io/socket.io.js"></script>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+
+<style type="text/css">
+body {background: white; margin: 20px;}
+h2 {margin: 20px 0;}
+</style>
+</head>
+
+
+<body onload="start()">
+<p style="display:inline">User: </p><p style="display:inline" id="userip"></p><br>
+<h1>F10N_Commit_View </h1>
+<p>*Admin can Edit the Commit</p>
+<p>*All TM can Edit Remark</p>
+<p>To Edit Remark: 1)Press the [Edit Remark] button to start edit   2)Start Edit while the button font in blue color   3)click the [Finish Edit] button to update the remark</p>
+<p>*Right click on specific row and click Check Lot to view the WIP at step</p>
+<p>*IF Error Occured Try: Click F12 and type  handsontableerror() and refresh</p>
+<table >
+	<tr>
+		<th style="text-align= left" ><button onclick="Editcommit()">Edit Commit</button></th>
+		<th style="text-align= left" ><button onclick="EditRemark()" id="remark">Edit Remark</button></th>
+		<th style="text-align= left" ><button onclick="EditAccess()">Edit Access</button></th>
+		<th style="text-align= left" ><p id="part"></p></th>
+	</tr>
+
+</table><br>
+
+<p style="display:inline">Last Refresh: </p><div style="display:inline" id="Refreshtime"><div class="spinner-grow" role="status"> <span class="sr-only">Loading...</span></div></div><br>
+<div id="data_view" onclick="Clear()" >
+<div class="spinner-grow" role="status"> <span class="sr-only">Loading...</span></div>
+</div>
+<br>
+<p style="display:inline">Last Refresh: </p><div style="display:inline" id="Refreshtime2"><div class="spinner-grow" role="status"> <span class="sr-only">Loading...</span></div></div><br>
+<div id="data_view2" onclick="Clear()">
+<div class="spinner-grow" role="status"> <span class="sr-only">Loading...</span></div>
+</div>
+<br>
+<p style="display:inline">Free Style Editing - Step Checker &#9757 &#9996 &#128050 (Add StepName and TechNode (Must)) </p><p style="display:inline" id="Refreshtime3"></p><br>
+<table >
+	<tr>
+		<th style="text-align= left" ><button onclick="clearfree()">Clear</button></th>
+		<th style="text-align= left" ><p id="part"></p></th>
+	</tr>
+
+</table><br>
+
+<div id="data_view3" onchange= "freestyle()" onclick="Clear()"></div>
+
+<p style="color:white";"display:inline">If error click this handsontableerror()</p>
+
+<script type="text/javascript">
+
+var socket = io();
+
+let data = [[]];
+let data2 = [[]];
+let Promise = [];
+let sqlcommit = [];
+let sqlcommit2 = [];
+let sqlrefresh = [];
+let tab = [];
+let commit = [];
+let copy = [];
+let copy2 = [];
+let copy3 = [];
+let hot = [];
+let hot2 = [];
+let hot3 = [];
+let remark = [];
+let array = "";
+let Checker = [];
+let res = [];
+let selection = [];
+let TT = [];
+let data3 = [[]];
+let editremark = "not edit";
+
+
+var o = {
+  set data(x) {
+	if (editremark == "not edit") {
+		data = x;
+		try{
+		table(x);
+		}
+		catch (e){}
+	}
+  },
+  set data2(x) {
+	if (editremark == "not edit") {
+		data2 = x;
+		try{
+		table2(x);
+		}
+		catch (e){}
+	}
+  },
+  set data3(x) {
+	if (editremark == "not edit") {
+		data3 = x;
+		try{
+		table3(x);
+		}
+		catch (e){}
+	}
+  },
+  set sqlcommit(x) {
+	sqlcommit = x;
+	join();
+  },
+  set sqlcommit2(x) {
+	sqlcommit2 = x;
+	join();
+  },
+  set sqlrefresh(x) {
+	sqlrefresh = x;
+	document.getElementById("Refreshtime").innerHTML = JSON.stringify(sqlrefresh[0].last_refresh);
+  },
+  set sqlrefresh2(x) {
+	sqlrefresh2 = x;
+	document.getElementById("Refreshtime2").innerHTML = JSON.stringify(sqlrefresh2[0].last_refresh);
+  },
+  set editremark(x) {
+	editremark = x;
+  }
+};
+
+
+setInterval(function(){
+if (editremark == "not edit") {
+	 console.clear();
+}
+}, 60000);
+
+
+function Clear() {
+//console.clear();
+}
+
+
+function start() {
+
+socket.emit('UserIP');
+socket.emit('commit_getdata');
+socket.emit('sqlcommit');
+
+o.data3 =  [{workstation : null, Stepname : null, Commit : null, TechNode : null, Remark : null, AreaName : null, Moves: null, Wip: null, Running: null, Hold: null, MTAS: null, Delta: null} ];
+//table(data);
+
+
+setTimeout(
+function (){
+	var p = document.getElementById("data_view").innerHTML;
+	var spinner = p.toString().replace('<div class="spinner-grow" role="status"> <span class="sr-only">Loading...</span></div>',"").trim();
+	if (p == null || p == "" ||  spinner == null || spinner == ""){
+		document.getElementById("data_view").innerHTML = null;
+		document.getElementById("data_view").innerHTML = "<button onclick='handsontableerror()'>data not appear click here and then refresh this page</button>";
+	} else{
+		console.log("No Error (handle)");
+	}
+}
+, 5000);
+
+}
+
+function table(data){
+try {
+	document.getElementById('data_view').innerHTML = null;
+	const container = document.getElementById('data_view');
+	hot = new Handsontable(container, {
+	licenseKey: 'non-commercial-and-evaluation',
+	data: data,
+	//rowHeaders: true,
+	colHeaders: ['Area','Work Station','Stepname','Commit','TechNode','Moves','WIP','Running','Hold','MTAS','Delta to Commit','Remarks','Delta to Commit'],
+	//editor: false,
+	 columns: function(column) {
+		var columnMeta = {};
+
+		if (column === 0) {
+		  columnMeta.data = 'AreaName';
+		} else if (column === 1) {
+		  columnMeta.data = 'workstation';
+		} else if (column === 2) {
+		  columnMeta.data = 'Stepname';
+		} else if (column === 3) {
+		  columnMeta.data = 'Commit';
+		} else if (column === 4) {
+		  columnMeta.data = 'TechNode';
+		} else if (column === 5) {
+		  columnMeta.data = 'Moves';
+		} else if (column === 6) {
+		  columnMeta.data = 'Wip';
+		} else if (column === 7) {
+		  columnMeta.data = 'Running';
+		} else if (column === 8) {
+		  columnMeta.data = 'Hold';
+		} else if (column === 9) {
+		  columnMeta.data = 'MTAS';		
+		} else if (column === 10) {
+		  columnMeta.data = 'Delta to Commit';
+		} else if (column === 11) {
+		  columnMeta.data = 'Remark';
+		  columnMeta.readOnly = false;
+		}
+		return columnMeta;
+	},
+	readOnly: false,
+	overflow: 'hidden',
+	contextMenu: true,
+	afterSelection: function(r,c){
+    	selection = this.getDataAtRow(r);
+		//localStorage.setItem("selection", selection);
+		//sessionStorage.setItem("selection2", selection);
+		//console.log(data)
+	},
+	contextMenu: {
+		items: {
+			'row_above': {},
+			'row_below': {},
+			'col_left': {},
+			'col_right': {},
+			'remove_row': {},
+			'remove_col': {},
+			'undo': {},
+			'redo': {},
+			'make_read_only': {},
+			'alignment': {},
+			'copy': {},
+			'export': {
+				name: 'Export to CSV',
+				callback: function(key, options) {
+				hot.getPlugin('exportFile').downloadFile('csv', {
+				columnHeaders: true,
+				overflow: 'hidden',
+				filename: 'Commit_Download_' + JSON.stringify(sqlrefresh[0].last_refresh)
+				})}
+			},
+			'lot_id_list': {
+              name: 'Check Lot',
+              callback: function() {
+				window.open("http://mfgrpa2:4000/lot_list?"+"Step="+selection[2].toString()+"Technode="+selection[4].toString(), "lot_list", "width=1500");
+                //window.open("http://mfgrpa2:3000/?param=value", "mywindow");
+              }
+			}
+	}},
+	dropdownMenu: true,
+	filters: true,
+	manualColumnResize: true,
+	manualRowResize: true,
+	columnSorting: true,
+	formulas: true,
+	minRows: 2,
+	minCols: 12,
+	minSpareRows: 1,
+	//maxCols: 3,
+	//colWidths: '100',
+	//height: 320,
+	//afterGetColHeader: addInput,
+	cells: function (row, col) {
+		var cellProperties = {};
+		const cellValue = this.instance.getDataAtCell(row, col);
+		
+		//Germ Status
+		if (col === 10){
+			if ( cellValue > 0 ) {
+			  cellProperties.renderer = function (instance, td, row, col, prop, value, cellProperties) {
+				  Handsontable.renderers.TextRenderer.apply(this, arguments);
+				  td.style.fontWeight = 'bold';
+				  td.style.color = 'black';
+				  td.style.background = '#4FF635';
+			  }
+			}
+			else if ( cellValue < 0 ) {
+			  cellProperties.renderer = function (instance, td, row, col, prop, value, cellProperties) {
+				  Handsontable.renderers.TextRenderer.apply(this, arguments);
+				  td.style.fontWeight = 'bold';
+				  td.style.color = 'black';
+				  td.style.background = '#C84321';
+			  }
+			}
+			else {
+			}
+		}
+		return cellProperties;
+	 }
+});
+}
+catch(e){
+}
+}
+
+
+function table2(data2){
+try {
+	document.getElementById('data_view2').innerHTML = null;
+	const container = document.getElementById('data_view2');
+	hot2 = new Handsontable(container, {
+	licenseKey: 'non-commercial-and-evaluation',
+	data: data2,
+	//rowHeaders: true,
+	colHeaders: ['Area','Work Station','Stepname','Commit','TechNode','Moves','WIP','Running','Hold','MTAS','Delta to Commit','Remarks','Delta to Commit'],
+	//editor: false,
+	 columns: function(column) {
+		var columnMeta = {};
+
+		if (column === 0) {
+		  columnMeta.data = 'AreaName';
+		} else if (column === 1) {
+		  columnMeta.data = 'workstation';
+		} else if (column === 2) {
+		  columnMeta.data = 'Stepname';
+		} else if (column === 3) {
+		  columnMeta.data = 'Commit';
+		} else if (column === 4) {
+		  columnMeta.data = 'TechNode';
+		} else if (column === 5) {
+		  columnMeta.data = 'Moves';
+		} else if (column === 6) {
+		  columnMeta.data = 'Wip';
+		} else if (column === 7) {
+		  columnMeta.data = 'Running';
+		} else if (column === 8) {
+		  columnMeta.data = 'Hold';
+		} else if (column === 9) {
+		  columnMeta.data = 'MTAS';		
+		} else if (column === 10) {
+		  columnMeta.data = 'Delta to Commit';
+		} else if (column === 11) {
+		  columnMeta.data = 'Remark';
+		  columnMeta.readOnly = false;
+		}
+		return columnMeta;
+	},
+	readOnly:false,
+	overflow: 'hidden',
+	contextMenu: true,
+		afterSelection: function(r,c){
+    	selection = this.getDataAtRow(r);
+		//localStorage.setItem("selection", selection);
+		//sessionStorage.setItem("selection2", selection);
+		//onsole.log(data)
+	},
+	contextMenu: {
+		items: {
+			'row_above': {},
+			'row_below': {},
+			'col_left': {},
+			'col_right': {},
+			'remove_row': {},
+			'remove_col': {},
+			'undo': {},
+			'redo': {},
+			'make_read_only': {},
+			'alignment': {},
+			'copy': {},
+			'export': {
+				name: 'Export to CSV',
+				callback: function(key, options) {
+				hot.getPlugin('exportFile').downloadFile('csv', {
+				columnHeaders: true,
+				overflow: 'hidden',
+				filename: 'Commit_Download_' + JSON.stringify(sqlrefresh[0].last_refresh)
+				})}
+			},
+			'lot_id_list': {
+              name: 'Check Lot',
+              callback: function() {
+				window.open("http://mfgrpa2:4000/lot_list?"+"Step="+selection[2].toString()+"Technode="+selection[4].toString(), "lot_list", "width=1000,height=1000");
+                //window.open("http://mfgrpa2:3000/?param=value", "mywindow");
+              }
+			}
+	}},
+	dropdownMenu: true,
+	filters: true,
+	manualColumnResize: true,
+	manualRowResize: true,
+	columnSorting: true,
+	formulas: true,
+	minRows: 2,
+	minCols: 12,
+	minSpareRows: 1,
+	//maxCols: 3,
+	//colWidths: '100',
+	//height: 320,
+	//afterGetColHeader: addInput,
+	cells: function (row, col) {
+		var cellProperties = {};
+		const cellValue = this.instance.getDataAtCell(row, col);
+		
+		//Germ Status
+		if (col === 10){
+			if ( cellValue > 0 ) {
+			  cellProperties.renderer = function (instance, td, row, col, prop, value, cellProperties) {
+				  Handsontable.renderers.TextRenderer.apply(this, arguments);
+				  td.style.fontWeight = 'bold';
+				  td.style.color = 'black';
+				  td.style.background = '#4FF635';
+			  }
+			}
+			else if ( cellValue < 0 ) {
+			  cellProperties.renderer = function (instance, td, row, col, prop, value, cellProperties) {
+				  Handsontable.renderers.TextRenderer.apply(this, arguments);
+				  td.style.fontWeight = 'bold';
+				  td.style.color = 'black';
+				  td.style.background = '#C84321';
+			  }
+			}
+			else {
+			}
+		}	
+		return cellProperties;
+	 }
+});
+}
+catch(e){
+}
+}
+
+
+
+function table3(data3){
+try {
+	document.getElementById('data_view3').innerHTML = null;
+	const container = document.getElementById('data_view3');
+	hot3 = new Handsontable(container, {
+	licenseKey: 'non-commercial-and-evaluation',
+	data: data3,
+	//rowHeaders: true,
+	colHeaders: ['Area','Work Station','Stepname','Commit','TechNode','Moves','WIP','Running','Hold','MTAS','Delta to Commit','Remarks','Delta to Commit'],
+	//editor: false,
+	 columns: function(column) {
+		var columnMeta = {};
+
+		if (column === 0) {
+		  columnMeta.data = 'AreaName';
+		} else if (column === 1) {
+		  columnMeta.data = 'workstation';
+		} else if (column === 2) {
+		  columnMeta.data = 'Stepname';
+		} else if (column === 3) {
+		  columnMeta.data = 'Commit';
+		} else if (column === 4) {
+		  columnMeta.data = 'TechNode';
+		} else if (column === 5) {
+		  columnMeta.data = 'Moves';
+		} else if (column === 6) {
+		  columnMeta.data = 'Wip';
+		} else if (column === 7) {
+		  columnMeta.data = 'Running';
+		} else if (column === 8) {
+		  columnMeta.data = 'Hold';
+		} else if (column === 9) {
+		  columnMeta.data = 'MTAS';		
+		} else if (column === 10) {
+		  columnMeta.data = 'Delta';
+		} else if (column === 11) {
+		  columnMeta.data = 'Remark';
+		  columnMeta.readOnly = false;
+		}
+		return columnMeta;
+	},
+	readOnly:false,
+	overflow: 'hidden',
+	contextMenu: true,
+		afterSelection: function(r,c){
+    	selection = this.getDataAtRow(r);
+		//localStorage.setItem("selection", selection);
+		//sessionStorage.setItem("selection2", selection);
+		//console.log(data)
+	},
+	contextMenu: {
+		items: {
+			'row_above': {},
+			'row_below': {},
+			'col_left': {},
+			'col_right': {},
+			'remove_row': {},
+			'remove_col': {},
+			'undo': {},
+			'redo': {},
+			'make_read_only': {},
+			'alignment': {},
+			'copy': {},
+			'export': {
+				name: 'Export to CSV',
+				callback: function(key, options) {
+				hot.getPlugin('exportFile').downloadFile('csv', {
+				columnHeaders: true,
+				overflow: 'hidden',
+				filename: 'Commit_Download_' + JSON.stringify(sqlrefresh[0].last_refresh)
+				})}
+			},
+			'lot_id_list': {
+              name: 'Check Lot',
+              callback: function() {
+				window.open("http://mfgrpa2:4000/lot_list?"+"Step="+selection[2].toString()+"Technode="+selection[4].toString(), "lot_list", "width=1000,height=1000");
+                //window.open("http://mfgrpa2:3000/?param=value", "mywindow");
+              }
+			}
+	}},
+	dropdownMenu: true,
+	filters: true,
+	manualColumnResize: true,
+	manualRowResize: true,
+	columnSorting: true,
+	formulas: true,
+	minRows: 2,
+	minCols: 12,
+	minSpareRows: 1,
+	//maxCols: 3,
+	//colWidths: '100',
+	//height: 320,
+	//afterGetColHeader: addInput,
+	cells: function (row, col) {
+		var cellProperties = {};
+		const cellValue = this.instance.getDataAtCell(row, col);
+		
+		//Germ Status
+		if (col === 10){
+			if ( cellValue > 0 ) {
+			  cellProperties.renderer = function (instance, td, row, col, prop, value, cellProperties) {
+				  Handsontable.renderers.TextRenderer.apply(this, arguments);
+				  td.style.fontWeight = 'bold';
+				  td.style.color = 'black';
+				  td.style.background = '#4FF635';
+			  }
+			}
+			else if ( cellValue < 0 ) {
+			  cellProperties.renderer = function (instance, td, row, col, prop, value, cellProperties) {
+				  Handsontable.renderers.TextRenderer.apply(this, arguments);
+				  td.style.fontWeight = 'bold';
+				  td.style.color = 'black';
+				  td.style.background = '#C84321';
+			  }
+			}
+			else {
+			}
+		}	
+		return cellProperties;
+	 }
+});
+}
+catch(e){
+}
+}
+
+
+
+/////////////////////Function
+
+function EditRemark(){
+
+if (document.getElementById("remark").innerHTML =="Finish Edit"){
+		o.editremark = "not edit";
+		document.getElementById("remark").style.color= null;
+		document.getElementById("remark").innerHTML ="Edit Remark";
+		
+	
+		copy = hot.getSourceData();
+		copy2 = hot2.getSourceData();
+		copy = copy.map(({workstation,Stepname,Commit,TechNode,Remark}) => ({workstation,Stepname,Commit,TechNode,Remark}));
+		copy2 = copy2.map(({workstation,Stepname,Commit,TechNode,Remark}) => ({workstation,Stepname,Commit,TechNode,Remark}));
+		copy = copy.concat(copy2);
+		remark = [];
+		for (i=0; i < copy.length; i++){
+		
+		if (copy[i].workstation !== null && copy[i].Stepname !==null && copy[i].Commit !== null && copy[i].TechNode !== null){
+			if (copy[i].workstation !== undefined && copy[i].Stepname !== undefined && copy[i].Commit !== undefined && copy[i].TechNode !== undefined){
+				remark.push( {workstation : copy[i].workstation, Stepname : copy[i].Stepname, Commit : parseInt(copy[i].Commit), TechNode : copy[i].TechNode, Remark : copy[i].Remark} );
+			}
+		}
+		
+		else {
+		}}
+		socket.emit('remark_update', remark );	
+		console.log("Remark_Updated");
+		//o.data = copy;
+		//o.data2 = copy2;
+		
+		
+} else {
+		o.editremark = "edit";
+		document.getElementById("remark").style.color = 'blue';
+		document.getElementById("remark").innerHTML ="Finish Edit";
+
+}
+
+}
+
+function Editcommit(){
+	console.log(socket.id)
+	array = { type: 'Edit Commit', socket: socket.id , datetime: Date()};
+	socket.emit('Auth', array );	
+}
+
+function alertaccess(link){
+	window.open(link.redirect, "Commit Edit - "+link.user, "width=1000,height=1000");
+	//console.log(link.redirect, "Commit Edit - "+link.user, "width=1000,height=1000");
+}
+
+function alertnoaccess(link){
+	alert( link.user+" Dont have Access to "+link.type );
+}
+
+
+function EditAccess() {
+window.location.replace("http://mfgrpa2:4000/micron123");
+}
+
+const innerJoin = (xs, ys, sel) =>
+    xs.reduce((zs, x) =>
+    ys.reduce((zs, y) =>        // cartesian product - all combinations
+    zs.concat(sel(x, y) || []), // filter out the rows and columns you want
+    zs), []);
+	
+	
+const noNull = v => {
+    if (v && typeof v === 'object' && Array.isArray(v.children)) v.children = v.children.filter(noNull);
+    return v !== null;
+};
+
+
+function join(){
+try{
+
+let result = [];
+result = innerJoin(tab, sqlcommit,
+    ({workstation, Stepname , Commit, TechNode, Remark}, {TimeVal: TV, AreaName, StepName :SN, TechNode : TN, Moves, Wip,  Running, Hold, MTAS }) =>
+        Stepname.toLowerCase() === SN.toLowerCase() && TechNode.toLowerCase() === TN.toLowerCase() && {TV, AreaName, workstation, Stepname , Commit, TechNode, Moves, Wip,  Running, Hold, MTAS, Remark});
+
+result.forEach(function(e){
+  if (typeof e === "object" ){
+    e["Delta to Commit"] =  parseInt(e["Moves"] - e["Commit"]* e["TV"]);
+  }
+});
+o.data = result;
+
+let result2 = [];
+result2 = innerJoin(tab, sqlcommit2,
+    ({workstation, Stepname , Commit, TechNode, Remark}, {TimeVal: TV, AreaName, StepName :SN, TechNode : TN, Moves, Wip,  Running, Hold, MTAS }) =>
+        Stepname.toLowerCase() === SN.toLowerCase() && TechNode.toLowerCase() === TN.toLowerCase() && {TV, AreaName, workstation, Stepname , Commit, TechNode, Moves, Wip,  Running, Hold, MTAS, Remark});
+
+result2.forEach(function(e){
+  if (typeof e === "object" ){
+    e["Delta to Commit"] =  parseInt(e["Moves"] - e["Commit"]* e["TV"]);
+  }
+});
+
+o.data2 = result2;
+
+}
+catch (e){}
+
+}
+
+
+
+function freestyle() {
+//console.log("DDT");
+try{
+
+checker = [];
+checker = sqlcommit.concat(sqlcommit2);
+
+copy3 = hot3.getSourceData();
+copy3 = copy3.map(({workstation, Stepname , Commit, TechNode, Remark}) => ({workstation, Stepname , Commit, TechNode, Remark}));
+
+let new3 = [];
+for (i=0; i < copy3.length; i++){
+	if (copy3[i]["Stepname"] !==null && copy3[i]["TechNode"] !== null){
+		new3.push( {workstation : copy3[i]["workstation"], Stepname : copy3[i]["Stepname"], Commit : parseInt(copy3[i]["Commit"]), TechNode : copy3[i]["TechNode"], Remark : copy3[i]["Remark"]} );
+	} else {
+	}
+}
+
+//console.log(new3);
+//console.log(checker);
+res = [];
+res = innerJoin(new3, checker,
+    ({workstation, Stepname , Commit, TechNode, Remark}, {TimeVal: TV, AreaName, StepName :SN, TechNode : TN, Moves, Wip,  Running, Hold, MTAS }) =>
+        Stepname.toLowerCase() === SN.toLowerCase() && TechNode.toLowerCase() === TN.toLowerCase() && {TV, AreaName, workstation, Stepname , Commit, TechNode, Moves, Wip,  Running, Hold, MTAS, Remark});
+
+
+res.forEach(function(e){
+  if (typeof e === "object" ){
+    e["Delta"] =  parseInt(e["Moves"] - e["Commit"]* e["TV"]);
+  }
+});
+
+o.data3 = res;
+//console.log(res);
+
+}
+catch (e){}
+}
+
+
+
+
+function clearfree(){
+o.data3 =  [{workstation : null, Stepname : null, Commit : null, TechNode : null, Remark : null, AreaName : null, Moves: null, Wip: null, Running: null, Hold: null, MTAS: null, Delta: null} ];
+}
+
+
+
+
+
+
+
+/////////////////////Socket
+
+socket.on('Refresh',()=>{
+    socket.emit('sqlcommit');
+	socket.emit('sqllastrefresh');
+	socket.emit('commit_getdata');
+})
+
+socket.once('Accessname', (userip)=>{
+	document.getElementById("userip").innerHTML = userip;
+	//console.log(userip);
+});
+
+
+socket.on('commit_update', (json) => {
+	//array = json
+	tab = json;
+	//console.log(json);
+	//o.data = json;
+	join();
+	//console.log("Received commit update data");
+})
+
+
+socket.on('send_sqlcommit', (json) => {
+	o.sqlcommit = json;
+	//console.log("Received sql commit data" );
+});
+
+socket.on('send_sqlcommit2', (json) => {
+	o.sqlcommit2 = json;
+	//console.log("Received sql commit data" );
+});
+
+socket.on('send_refreshtime', (json) => {
+	o.sqlrefresh = json;
+	//console.log("Received sql refresh time data" );
+});
+
+socket.on('send_refreshtime2', (json) => {
+	o.sqlrefresh2 = json;
+	//console.log("Received sql refresh time data" );
+});
+
+
+socket.on('Access', (link) => {
+	if (link.Access == 'Y'){
+		alertaccess(link);
+	}
+	else {
+		alertnoaccess(link);
+	}
+})
+
+
+
+//////////////////////event listener
+var input = document.getElementById("data_view3");
+input.addEventListener("keyup", function(event) {
+  if (event.keyCode === 13) {
+   event.preventDefault();
+   document.getElementById("data_view3").onchange();
+  }
+});
+
+function handsontableerror(){
+		TT = window.open("https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js", "Handsontableopen", "width=1000,height=1000");
+}
+
+
+TT.onunload = function(){
+location.reload();
+};
+
+</script>
+
+</body>  
+</HTML>
+
+
+
+
+

@@ -1,0 +1,250 @@
+<!doctype html>
+<html>
+ <head>
+<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script> -->
+<!-- <script src= "https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>  -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script> -->
+<!-- <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" rel="stylesheet"></link> -->
+
+<!-- <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css"> -->
+<!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script> -->
+<!-- <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.bundle.min.js"></script> -->
+<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.1/js/bootstrap-select.min.js"></script> -->
+<!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.1/css/bootstrap-select.css" /> -->
+<!-- <script src="/socket.io/socket.io.js"></script> -->
+<!-- <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script> -->
+<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script> -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script>
+<script src= "https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script> 
+<!-- <script src="http://mfgrpa2:4000/handsontable"></script> -->
+ <script src="https://cdn.jsdelivr.net/npm/handsontable@8.3.1/dist/handsontable.full.min.js"></script> 
+<link href="https://cdn.jsdelivr.net/npm/handsontable@8.3.1/dist/handsontable.full.min.css" rel="stylesheet" media="screen">
+
+<script src="/socket.io/socket.io.js"></script>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+
+</head>
+  
+
+<body onload="start()">
+<p  id="DDT"></p>
+<p style="display:inline">User: </p><p style="display:inline" id="userip"></p><br>
+<h1>Lot_List</h1>
+
+<!-- <table > -->
+	<!-- <tr> -->
+		<!-- <th style="text-align= left" ><button onclick="Editcommit()">Edit Commit</button></th> -->
+		<!-- <th style="text-align= left" ><button onclick="EditRemark()">Edit Remark</button></th> -->
+		<!-- <th style="text-align= left" ><p id="part"></p></th> -->
+	<!-- </tr> -->
+
+<!-- </table><br> -->
+<p style="display:inline">Last Refresh: </p><div style="display:inline" id="Refreshtime"><div class="spinner-grow" role="status"> <span class="sr-only">Loading...</span></div></div><br>
+
+<div id="data_view" >
+<div class="spinner-grow" role="status"> <span class="sr-only">Loading...</span></div>
+</div>
+<br>
+
+<script type="text/javascript"> 
+
+
+let data = [[]];
+let sqlrefresh = [];
+let step = [];
+let TechNode = [];
+let DID = [];
+
+
+
+var o = {
+  set data(x) {
+	data = x;
+    table(x);
+  },
+  set sqlrefresh(x) {
+	sqlrefresh = x;
+	document.getElementById("Refreshtime").innerHTML = JSON.stringify(sqlrefresh[0].last_update);
+  },
+
+};
+
+
+
+function start() {
+
+var x = window.location.href.search("Step=");
+var y = window.location.href.search("Technode=");
+var z1 = window.location.href.substring(x+5,y);
+var z2 = window.location.href.substring(y+9,window.location.href.length);
+
+step = z1.replaceAll("%20"," ");
+var spec = z2.replaceAll("%20"," ");
+if (isNaN(spec.replace("s","")) == true){
+DID = spec;
+} else {
+TechNode = spec.toUpperCase()
+}
+
+socket.emit('UserIP');
+socket.emit('sqlcommit');
+//table(data);
+
+}
+
+
+function table(data){
+	document.getElementById('data_view').innerHTML = null;
+	const container = document.getElementById('data_view');
+	hot = new Handsontable(container, {
+	licenseKey: 'non-commercial-and-evaluation',
+	data: data,
+	//rowHeaders: true,
+	//colHeaders: true,
+	colHeaders: ['lot_id','lot_priority_status','lot_status','DID','Stepname','lot_current_qty','MTAS','lot_in_qty','carrier_id','location_state','recipe_name','Execption','TechNode'],
+	//editor: false,
+	columns: function(column) {
+		var columnMeta = {};
+
+		if (column === 0) {
+		  columnMeta.data = 'lot_id';
+		} else if (column === 1) {
+		  columnMeta.data = 'lot_priority_status';
+		} else if (column === 2) {
+		  columnMeta.data = 'lot_status';
+		} else if (column === 3) {
+		  columnMeta.data = 'design_id';
+		} else if (column === 4) {
+		  columnMeta.data = 'step_name';
+		} else if (column === 5) {
+		  columnMeta.data = 'lot_current_qty';
+		} else if (column === 6) {
+		  columnMeta.data = 'MTAS';
+		} else if (column === 7) {
+		  columnMeta.data = 'lot_in_qty';
+		} else if (column === 8) {
+		  columnMeta.data = 'carrier_id';
+		} else if (column === 9) {
+		  columnMeta.data = 'location_state';
+		} else if (column === 10) {
+		  columnMeta.data = 'recipe_name';
+		} else if (column === 11) {
+		  columnMeta.data = 'exception';		
+		} else if (column === 12) {
+		  columnMeta.data = 'TechNode';
+		} 
+		return columnMeta;
+	},
+	readOnly: false,
+	overflow: 'hidden',
+	contextMenu: true,
+	afterSelection: function(r,c){
+    	selection = this.getDataAtRow(r);
+		//onsole.log(data)
+	},
+	contextMenu: {
+		items: {
+			'row_above': {},
+			'row_below': {},
+			'col_left': {},
+			'col_right': {},
+			'remove_row': {},
+			'remove_col': {},
+			'undo': {},
+			'redo': {},
+			'make_read_only': {},
+			'alignment': {},
+			'copy': {},
+			'export': {
+				name: 'Export to CSV',
+				callback: function(key, options) {
+				hot.getPlugin('exportFile').downloadFile('csv', {
+				columnHeaders: true,
+				overflow: 'hidden',
+				filename: 'Commit_Download_' + JSON.stringify(sqlrefresh[0].last_refresh)
+				})}
+			}
+	}},
+	dropdownMenu: true,
+	filters: true,
+	manualColumnResize: true,
+	manualRowResize: true,
+	columnSorting: true,
+	formulas: true,
+	minRows: 2,
+	minCols: 12,
+	minSpareRows: 1,
+	//maxCols: 3,
+	//colWidths: '100',
+	//height: 320,
+	//afterGetColHeader: addInput,
+	// cells: function (row, col) {
+		// var cellProperties = {};
+		// const cellValue = this.instance.getDataAtCell(row, col);
+		
+		//Germ Status
+		// if (col === 10){
+			// if ( cellValue > 0 ) {
+			  // cellProperties.renderer = function (instance, td, row, col, prop, value, cellProperties) {
+				  // Handsontable.renderers.TextRenderer.apply(this, arguments);
+				  // td.style.fontWeight = 'bold';
+				  // td.style.color = 'black';
+				  // td.style.background = '#4FF635';
+			  // }
+			// }
+			// else if ( cellValue < 0 ) {
+			  // cellProperties.renderer = function (instance, td, row, col, prop, value, cellProperties) {
+				  // Handsontable.renderers.TextRenderer.apply(this, arguments);
+				  // td.style.fontWeight = 'bold';
+				  // td.style.color = 'black';
+				  // td.style.background = '#C84321';
+			  // }
+			// }
+			// else {
+			// }
+		// }
+		// return cellProperties;
+	 // }
+});
+
+}
+
+////////////////////////////////////////socket
+var socket = io();
+socket.emit('UserIP');
+socket.once('Accessname', (userip)=>{
+	document.getElementById("userip").innerHTML = userip;
+});
+
+socket.on('Refresh', ()=>{
+	socket.emit('sqllot');
+});
+
+socket.on('send_lot', (lot) =>{
+if (step.length !== 0){
+	lot = lot.filter(d=> step.includes(d.step_name));
+} else {}
+
+
+if (TechNode.length !== 0){
+	lot = lot.filter(d=> TechNode.includes(d.TechNode));
+} else {}
+
+if (DID.length !== 0){
+	lot = lot.filter(d=> DID.includes(d.design_id));
+} else {}
+
+
+console.log(lot);
+o.data = lot
+});
+
+socket.on('send_lot_refresh', (d) =>{
+	o.sqlrefresh = d;
+});
+
+  
+</script>
+</body>
+</html>

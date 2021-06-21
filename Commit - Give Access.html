@@ -1,0 +1,191 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+</style><!-- Ugly Hack due to jsFiddle issue: http://goo.gl/BUfGZ -->
+
+
+<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script> -->
+<!-- <script src= "https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>  -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js" onerror="errorhandsontable()"></script> -->
+<!-- <script src="/socket.io/socket.io.js"></script> -->
+<!-- <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" rel="stylesheet"></link> -->
+<!-- <script src="/socket.io/socket.io.js"></script> -->
+<!-- <link rel="stylesheet" media="screen" href="http://handsontable.com/dist/handsontable.full.css"> -->
+<!-- <link rel="stylesheet" media="screen" href="http://handsontable.com/demo/css/samples.css"> -->
+<!-- <link rel="stylesheet" media="screen" href="http://handsontable.com/demo/css/samples.css"> -->
+<!-- <link rel="stylesheet" media="screen" href="http://handsontable.com/demo/css/samples.css"> -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script>
+<script src= "https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script> 
+<!-- <script src="http://mfgrpa2:4000/handsontable"></script> -->
+ <script src="https://cdn.jsdelivr.net/npm/handsontable@8.3.1/dist/handsontable.full.min.js"></script> 
+<link href="https://cdn.jsdelivr.net/npm/handsontable@8.3.1/dist/handsontable.full.min.css" rel="stylesheet" media="screen">
+
+<script src="/socket.io/socket.io.js"></script>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+
+
+<style type="text/css">
+body {background: white; margin: 20px;}
+h2 {margin: 20px 0;}
+</style>
+</head>
+
+
+<body onload="start()">
+<p style="display:inline">User: </p><p style="display:inline" id="userip"></p>
+<h1>Give Access</h1>
+<p>Current users(Admin) Granted (shown below)</p>
+<iframe src="http://mfgrpa2:4000/AccessLIST" title="Access_LIST" id="userlist" width=1000px></iframe><br>
+
+<p>*Admin can grant/remove access (including him/herself)</p>
+<p>*Modify the user access below here and click "GIVE ACCESS"</p>
+<textarea id="input" rows="5" cols="150"></textarea><br>
+
+<table >
+	<tr>
+		<th style="text-align= left" ><button id="give" onclick="give()">GIVE ACCESS</button></th>
+		<th style="text-align= left" ><button id="backtomain" onclick="backtomain()">BACK TO MAIN</button></th>
+		<!-- <th style="text-align= left" ><button id="give" onclick="givem()">GIVE ACCESS to MYSELF</button></th> -->
+		<th style="text-align= left" ><p id="part"></p></th>
+	</tr>
+	
+
+
+</table><br>
+<p style="color:white">F12 type givem() and type password micron123 to give yourself Access</p>
+
+
+<!-- <button id="remove" onclick="remove()">REMOVE ACCESS</button> -->
+
+
+<script type="text/javascript">
+
+
+var socket = io();
+var user =  [[]];
+let tab = [];
+let hot = [];
+let passcode = [];
+
+var o = {
+  set user(x) {
+	user = x;
+    document.getElementById("input").value = x;
+  }
+};
+
+
+
+socket.emit('UserIP');
+socket.once('Accessname', (userip)=>{
+	document.getElementById("userip").innerHTML = userip;
+});
+
+
+socket.on('iframereload', ()=>{
+	document.getElementById('userlist').contentWindow.location.reload();
+})
+
+
+socket.on('access_user', (data)=>{
+	o.user = data;
+})
+
+socket.on('passcode_send', (data)=>{
+	passcode = data;
+})
+
+socket.on('Access', (link) => {
+	alert( link.user+" "+link.redirect);
+	socket.emit('commit_access_user');
+})
+
+
+
+function start() {
+	socket.emit('commit_access_user');
+	socket.emit('send_passcode');
+}
+
+
+
+
+function give(){
+	console.log(socket.id)
+	user = document.getElementById("input").value;
+	array = { type: 'Add Access', socket: socket.id , datetime: Date(), data:user};
+	socket.emit('Auth', array );	
+}
+
+
+
+function givem(){
+	var pass = prompt("Enter Password", "");
+	if (pass == passcode){
+		alert("Added user");
+		var array2 = { type: 'Add Access', socket: socket.id , datetime: Date(), data:passcode};
+		socket.emit('add_me', array2 );	
+	} else {
+		alert("Wrong Password");
+	}
+	
+	
+}
+
+
+function errorhandsontable(){
+	myWindow = window.open("https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js", "myWindow", "width=200, height=100");
+}
+
+
+function backtomain() {
+window.location.replace("http://mfgrpa2:4000/");
+}
+
+function table() {
+	document.getElementById('data_view').innerHTML = null;
+	hot = new Handsontable(container, {
+	licenseKey: 'non-commercial-and-evaluation',
+	data: data,
+	//rowHeaders: true,
+	colHeaders: ['Work Station','Stepname','Commit','TechNode'],
+	//editor: false,
+	//readOnly:true,
+	columns: function(column) {
+		var columnMeta = {};
+
+		if (column === 0) {
+		  columnMeta.data = 'workstation';
+		} else if (column === 1) {
+		  columnMeta.data = 'Stepname';
+		} else if (column === 2) {
+		  columnMeta.data = 'Commit';
+		} else if (column === 3) {
+		  columnMeta.data = 'TechNode';
+		} 
+		return columnMeta;
+	},
+	contextMenu: true,
+	dropdownMenu: true,
+	filters: true,
+	manualColumnResize: true,
+	manualRowResize: true,
+	columnSorting: true,
+	formulas: true,
+	minRows: 2,
+    minCols: 4,
+	maxCols: 4,
+	});
+
+}
+
+</script>
+
+</body>  
+</HTML>
+
+
+
+
+
